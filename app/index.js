@@ -6,7 +6,7 @@ const getRandomUser = require('./actions/getRandomUser')
 
 require('dotenv').config()
 
-const { PORT, MONGO_CONNECTION_STRING, ELASTIC_NODE_ADDRESS } = process.env
+const { PORT, MONGO_CONNECTION_STRING } = process.env
 const chance = new Chance()
 
 const app = express()
