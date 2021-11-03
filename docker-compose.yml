@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+      - "2003:2003"
+    env_file:
+      - "env.influxdb"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=test-user
+      - DOCKER_INFLUXDB_INIT_PASSWORD=test12345678
+      - DOCKER_INFLUXDB_INIT_ORG=test-org
+      - DOCKER_INFLUXDB_INIT_BUCKET=test-bucket
+      - DOCKER_INFLUXDB_INIT_RETENTION=1w
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=302f3ef7-6752-4e98-a18d-3c0bf88a226e-d96b9f58-38e7-11ec-8d3d-0242ac130003
+    volumes:
+      - /srv/docker/influxdb/data:/var/lib/influxdb
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    links:
+      - influxdb
+    depends_on:
+      - influxdb
+    user: "0"
+    environment: 
+      - DOCKER_INFLUXDB_INIT_ORG=test-org
+      - DOCKER_INFLUXDB_INIT_BUCKET=test-bucket
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=302f3ef7-6752-4e98-a18d-3c0bf88a226e-d96b9f58-38e7-11ec-8d3d-0242ac130003
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    env_file:
+      - "env.grafana"
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - /srv/docker/grafana/data:/var/lib/grafana
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - /srv/docker/mongodb/data:/data/db
+
+  elasticsearch:
+    image: elasticsearch:7.14.2
+    container_name: elasticsearch
+    ports:
+      - 9200:9200
+      - 9300:9300
+    volumes:
+      - /srv/docker/elastic/data:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+
+  nodeserver:
+    container_name: node-server
+    restart: always
+    build:
+      context: ./app
+    depends_on:
+      - mongodb
+      - elasticsearch
+    ports:
+      - "5000:5000"
+
+  nginx:
+    container_name: nginx
+    restart: always
+    build:
+      context: ./nginx
+    ports:
+      - "80:80"
